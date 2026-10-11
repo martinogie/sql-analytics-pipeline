@@ -1,0 +1,26 @@
+merchant_id,legal_name,country,signup_date,industry,plan,plan_effective_from
+m_00000,Merchant 00000 LLC,US,2026-05-07,Education,standard,2026-05-07
+m_00001,Merchant 00001 LLC,DE,10/27/2025,EDUCATION,standard,2025-10-27
+m_00002,Merchant 00002 LLC,US,02/26/2026,Software ,growth,2026-02-26
+m_00002,Merchant 00002 LLC,US,02/26/2026,Software ,enterprise,2026-04-19
+m_00003,Merchant 00003 LLC,DE,2026-03-19,Travel ,standard,2026-03-19
+m_00003,Merchant 00003 LLC,DE,2026-03-19,Travel ,growth,2026-09-20
+m_00004,Merchant 00004 LLC,US,12/07/2025,SOFTWARE,growth,2025-12-07
+m_00005,Merchant 00005 LLC,US,12/01/2025,health,standard,2025-12-01
+m_00006,Merchant 00006 LLC,FR,2025-10-12,HEALTH,standard,2025-10-12
+m_00007,Merchant 00007 LLC,GB,2025-08-07,health,standard,2025-08-07
+m_00008,Merchant 00008 LLC,GB,2026-03-08,Education,standard,2026-03-08
+m_00009,Merchant 00009 LLC,DE,2026-09-01,Software,growth,2026-09-01
+m_00010,Merchant 00010 LLC,US,2026-01-10,Education,standard,2026-01-10
+m_00010,Merchant 00010 LLC,US,2026-01-10,Education,growth,2026-04-29
+m_00011,Merchant 00011 LLC,US,2025-08-02,Travel,standard,2025-08-02
+m_00012,Merchant 00012 LLC,US,2025-08-13,Retail ,standard,2025-08-13
+m_00013,Merchant 00013 LLC,GB,2026-07-02,education,growth,2026-07-02
+m_00014,Merchant 00014 LLC,US,2025-07-17,Travel ,standard,2025-07-17
+m_00015,Merchant 00015 LLC,US,2026-05-01,RETAIL,standard,2026-05-01
+m_00015,Merchant 00015 LLC,US,2026-05-01,RETAIL,growth,2026-06-03
+m_00016,Merchant 00016 LLC,GB,2025-11-20,Travel ,standard,2025-11-20
+m_00017,Merchant 00017 LLC,US,01/07/2026,Software,standard,2026-01-07
+m_00018,Merchant 00018 LLC,GB,2026-08-13,EDUCATION,growth,2026-08-13
+m_00019,Merchant 00019 LLC,DE,05/26/2026, Software,standard,2026-05-26
+m_00020,Merchant 00020 LLC,GB,02/24/2026,software,growth,2026-02-24

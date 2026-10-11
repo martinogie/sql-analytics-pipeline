@@ -1,0 +1,43 @@
+# Governed metric definitions. The runner compiles each into SQL by month over its model.
+metrics:
+  - name: gmv
+    label: Gross merchandise volume (USD)
+    description: Value of succeeded payments, converted to USD at the payment-date rate.
+    model: fct_payments
+    type: sum
+    expression: amount_usd
+    filter: "status = 'succeeded'"
+  - name: net_revenue
+    label: Net revenue (USD)
+    description: Processing fees plus dispute fees, less processor and network cost.
+    model: fct_payments
+    type: sum
+    expression: net_revenue_usd
+  - name: take_rate
+    label: Take rate
+    description: Fee revenue as a share of GMV.
+    model: fct_payments
+    type: ratio
+    numerator: fee_revenue_usd
+    denominator: "case when status = 'succeeded' then amount_usd else 0 end"
+  - name: refund_rate
+    label: Refund rate
+    description: Refunded value as a share of GMV.
+    model: fct_payments
+    type: ratio
+    numerator: refunded_usd
+    denominator: "case when status = 'succeeded' then amount_usd else 0 end"
+  - name: authorisation_rate
+    label: Authorisation rate
+    description: Succeeded payments as a share of succeeded plus failed attempts.
+    model: fct_payments
+    type: ratio
+    numerator: "case when status = 'succeeded' then 1 else 0 end"
+    denominator: "case when status in ('succeeded', 'failed') then 1 else 0 end"
+  - name: active_merchants
+    label: Active merchants
+    description: Merchants with at least one succeeded payment in the month.
+    model: fct_payments
+    type: count_distinct
+    expression: merchant_id
+    filter: "status = 'succeeded'"

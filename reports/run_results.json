@@ -1,0 +1,29 @@
+{
+  "built_at": "2026-10-11 22:45 UTC",
+  "models": 13,
+  "build_seconds": 7.9,
+  "tests": 28,
+  "passed": 28,
+  "seed_rows": {
+    "chargebacks_raw": 1257,
+    "fx_rates": 1592,
+    "merchants_raw": 1389,
+    "payments_raw": 258344,
+    "refunds_raw": 10134
+  },
+  "model_rows": {
+    "stg_fx_rates": 1592,
+    "stg_refunds": 10134,
+    "stg_merchants": 1389,
+    "stg_payments": 248030,
+    "stg_chargebacks": 1257,
+    "int_fx_daily": 2224,
+    "int_payments_enriched": 248030,
+    "quarantine_payments": 190,
+    "fct_payments": 247840,
+    "dim_merchants": 1200,
+    "mart_merchant_monthly": 7916,
+    "mart_cohort_retention": 171,
+    "mart_kpis_monthly": 18
+  }
+}

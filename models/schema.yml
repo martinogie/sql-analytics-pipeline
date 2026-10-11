@@ -1,0 +1,80 @@
+# Model and column documentation, plus generic data tests.
+# Tests: unique, not_null, accepted_values, relationships, expression (rows where the expression is false fail).
+models:
+  - name: stg_payments
+    columns:
+      - name: payment_id
+        description: Payment identifier from the payments API.
+        tests: [unique, not_null]
+      - name: status
+        description: Final payment status after de-duplicating retried events.
+        tests:
+          - accepted_values: {values: [succeeded, failed, pending]}
+      - name: currency
+        tests:
+          - accepted_values: {values: [USD, EUR, GBP, CAD]}
+      - name: created_at
+        description: Payment creation time in UTC, parsed from ISO or epoch formats.
+        tests: [not_null]
+
+  - name: stg_merchants
+    columns:
+      - name: merchant_id
+        tests: [not_null]
+      - name: plan
+        tests:
+          - accepted_values: {values: [standard, growth, enterprise]}
+      - name: valid_to
+        description: Last day this plan version applied; 9999-12-31 for the current version.
+        tests:
+          - expression: {expr: "valid_to >= valid_from"}
+
+  - name: int_fx_daily
+    columns:
+      - name: rate_to_usd
+        tests: [not_null, {expression: {expr: "rate_to_usd > 0"}}]
+
+  - name: fct_payments
+    description: One row per valid payment. Payments for unknown merchants, with non-positive amounts or no FX rate are in quarantine_payments.
+    columns:
+      - name: payment_id
+        tests: [unique, not_null]
+      - name: merchant_id
+        tests:
+          - relationships: {to: dim_merchants, field: merchant_id}
+      - name: amount_usd
+        description: Payment amount converted at the as-of FX rate for the payment date.
+        tests: [not_null, {expression: {expr: "amount_usd > 0"}}]
+      - name: plan
+        description: Merchant plan in force on the payment date (from the SCD type-2 join).
+        tests: [not_null]
+      - name: net_revenue_usd
+        description: Fee revenue plus dispute fees less processing cost.
+
+  - name: dim_merchants
+    columns:
+      - name: merchant_id
+        tests: [unique, not_null]
+      - name: current_plan
+        tests:
+          - accepted_values: {values: [standard, growth, enterprise]}
+
+  - name: mart_merchant_monthly
+    columns:
+      - name: gmv_usd
+        tests: [{expression: {expr: "gmv_usd >= 0"}}]
+
+  - name: mart_kpis_monthly
+    columns:
+      - name: payment_month
+        tests: [unique, not_null]
+      - name: take_rate
+        description: Fee revenue / GMV.
+        tests: [{expression: {expr: "take_rate between 0.02 and 0.04"}}]
+      - name: authorisation_rate
+        tests: [{expression: {expr: "authorisation_rate between 0.85 and 1"}}]
+
+  - name: mart_cohort_retention
+    columns:
+      - name: retention
+        tests: [{expression: {expr: "retention > 0 and retention <= 1"}}]

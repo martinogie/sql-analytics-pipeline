@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Payments Analytics Pipeline</title>
+<meta name="description" content="A tested SQL pipeline from messy payment extracts to governed KPIs: staging, intermediate and mart models, data tests, metric definitions and lineage.">
+<style>
+/* Layout: a data-docs site. Run summary, the lineage graph with a model inspector beside it,
+   what the pipeline fixed, the test results, then the metrics the marts serve. */
+:root{color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--good:#0ca30c;--crit:#d03b3b;--accent:#3b4cc0;--code:#f1f0ec;
+  --l-sources:#898781;--l-staging:#2a78d6;--l-intermediate:#eda100;--l-marts:#1baf7a;
+  --q1:#cde2fb;--q2:#9ec5f4;--q3:#6da7ec;--q4:#3987e5;--q5:#256abf;--q6:#184f95;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--accent:#9aa6f0;--code:#232321;
+  --l-staging:#3987e5;--l-intermediate:#c98500;--l-marts:#199e70;
+  --q1:#104281;--q2:#184f95;--q3:#1c5cab;--q4:#256abf;--q5:#3987e5;--q6:#6da7ec}}
+:root[data-theme="dark"]{color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--accent:#9aa6f0;--code:#232321;
+  --l-staging:#3987e5;--l-intermediate:#c98500;--l-marts:#199e70;
+  --q1:#104281;--q2:#184f95;--q3:#1c5cab;--q4:#256abf;--q5:#3987e5;--q6:#6da7ec}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 56px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(26px,4vw,34px);line-height:1.1;margin:4px 0 6px;letter-spacing:-.01em}
+h2{font-size:15px;margin:0 0 10px} h3{font-size:14px;margin:12px 0 6px}
+p{margin:0 0 10px;max-width:75ch}
+.lede{color:var(--ink2)}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+.links a{font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;border:1px solid var(--ring);background:var(--surface);padding:6px 12px;border-radius:999px}
+.links a:hover,.links a:focus-visible{border-color:var(--s1);outline:none}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:16px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi .k{font-size:12px;color:var(--ink2)} .kpi .v{font-size:26px;font-weight:600;margin:2px 0} .kpi .s{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+.grid2.even{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dag svg{width:100%;height:auto;display:block}
+.dag .node{cursor:pointer}
+.dag .node rect{fill:var(--surface);stroke-width:1.5}
+.dag .node:hover rect,.dag .node:focus rect{stroke-width:3}
+.dag .node.sel rect{fill:var(--code);stroke-width:3}
+.dag .node text{font:600 11px var(--mono);fill:var(--ink)}
+.dag .node text.rows{font:10px var(--sans);fill:var(--muted)}
+.dag .edge{fill:none;stroke:var(--axis);stroke-width:1.2}
+.dag .edge.hl{stroke:var(--accent);stroke-width:2}
+.dag .colh{font:600 11px var(--sans);fill:var(--ink2);text-transform:uppercase;letter-spacing:.05em}
+.insp .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+pre{background:var(--code);border-radius:8px;padding:10px 12px;font:12px/1.5 var(--mono);overflow:auto;max-height:340px;margin:0;white-space:pre}
+code{font:12px var(--mono);background:var(--code);padding:1px 5px;border-radius:4px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--grid);font-variant-numeric:tabular-nums;vertical-align:top;white-space:nowrap}
+td.l{white-space:normal}
+details summary{cursor:pointer;font-weight:600;font-size:14px;margin:12px 0 6px}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td.l{text-align:left}
+.icon{flex:none;width:16px;height:16px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:700;color:#fff;vertical-align:-3px;margin-right:4px}
+.funnel{display:flex;flex-direction:column;gap:8px}
+.frow{display:grid;grid-template-columns:190px 1fr 80px;gap:10px;align-items:center;font-size:13px}
+.fbar{height:16px;border-radius:3px;background:var(--s1)}
+.fnote{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:-6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;border:1px solid var(--ring);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.chip b{font-variant-numeric:tabular-nums}
+.chart svg{width:100%;height:auto;display:block}
+.gl{stroke:var(--grid)} .tk{fill:var(--muted);font:11px var(--sans);font-variant-numeric:tabular-nums}
+.lab{fill:var(--ink2);font:600 10px var(--sans)}
+select{font:14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--ring);border-radius:8px;padding:6px 8px}
+.heat td{padding:3px 4px;font-size:11px;text-align:center;min-width:30px}
+.heat th{font-size:10px;text-align:center}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink2);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.note{font-size:13px;color:var(--ink2)}
+.sec{margin-top:26px} .sec ul{margin:0;padding-left:20px;max-width:85ch} .sec li{margin-bottom:6px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2,.grid2.even{grid-template-columns:1fr}.frow{grid-template-columns:120px 1fr 64px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Analytics engineering · SQL</div>
+  <h1>Payments Analytics Pipeline</h1>
+  <p class="lede">From messy payment-API extracts to tested, documented KPI tables in plain SQL: staging cleans and de-duplicates, intermediate models convert currency and join slowly changing merchant plans, and marts serve finance. Every model is tested; every metric has one definition.</p>
+  <div class="links"><a href="https://github.com/martinogie/sql-analytics-pipeline">Source code on GitHub</a><a href="https://martinogie.github.io/settlement-liquidity-dashboard/">Settlement & Liquidity Dashboard</a><a href="https://martinogie.github.io/budget-variance-pack/">Budget Variance Pack</a><a href="https://martinogie.github.io/merchant-unit-economics/">Merchant Unit Economics</a></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card dag"><h2>Lineage: click a model</h2><div id="dag"></div>
+      <div class="legend"><span><i style="background:var(--l-sources)"></i>Raw source</span><span><i style="background:var(--l-staging)"></i>Staging</span><span><i style="background:var(--l-intermediate)"></i>Intermediate</span><span><i style="background:var(--l-marts)"></i>Mart</span></div></div>
+    <div class="card insp" id="insp"></div>
+  </div>
+
+  <div class="grid2 even">
+    <div class="card"><h2>What the pipeline fixed</h2><div class="funnel" id="funnel"></div>
+      <h3>Cleaned along the way</h3><div class="chips" id="fixes"></div></div>
+    <div class="card"><h2>Data tests</h2><div class="tablewrap" style="max-height:420px;overflow:auto"><table id="t-tests"></table></div></div>
+  </div>
+
+  <div class="grid2 even">
+    <div class="card"><h2>Governed metrics</h2>
+      <select id="metric" aria-label="Metric"></select>
+      <p class="note" id="m-desc" style="margin-top:8px"></p>
+      <div class="chart" id="c-metric"></div>
+      <h3>Compiled from metrics.yml</h3><pre id="m-sql"></pre></div>
+    <div class="card"><h2>Monthly KPIs (mart_kpis_monthly)</h2><div class="tablewrap"><table id="t-kpi"></table></div>
+      <p class="note" style="margin-top:8px">Take rate is falling slowly as more merchants move to the growth and enterprise plans: the SCD join prices each payment at the plan in force that day. September refund and chargeback rates are understated because disputes arrive weeks after the payment.</p></div>
+  </div>
+
+  <div class="card"><h2>Merchant retention by first-payment month (mart_cohort_retention)</h2><div class="tablewrap"><table class="heat" id="t-heat"></table></div></div>
+
+  <div class="sec">
+    <h2 style="font-size:18px">How it works</h2>
+    <ul class="note">
+      <li><strong>Runner:</strong> a small dbt-style runner in Python. It reads <code>{{ ref() }}</code> and <code>{{ source() }}</code> in each model to build the graph, materialises models as SQLite tables in dependency order, and indexes id columns after each build.</li>
+      <li><strong>Tests:</strong> generic tests in <code>models/schema.yml</code> (unique, not_null, accepted_values, relationships, expression) plus singular SQL tests in <code>data_tests/</code>. Those check that GMV reconciles to the cent, that every payment lands in exactly one of the fact or quarantine tables, and that plan versions never overlap. Unit tests prove the tests catch planted errors.</li>
+      <li><strong>Techniques:</strong> de-duplication with <code>row_number()</code>, type-2 slowly changing dimensions with <code>lead()</code>, an as-of FX join via a recursive date spine, month-over-month growth with <code>lag()</code>, cohort retention, and quarantine instead of silently dropping rows.</li>
+      <li><strong>Metrics layer:</strong> <code>metrics/metrics.yml</code> defines each metric once; the runner compiles the SQL, so finance and dashboards use the same numbers.</li>
+    </ul>
+    <p class="note">The source data is synthetic, generated with realistic defects. Built with AI-assisted coding (Claude); the modelling, tests and review are my own.</p>
+  </div>
+</div>
+<script>
+const D=/*DATA*/null;
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toLocaleString("en-US"),usdM=v=>"$"+(v/1e6).toFixed(2)+"M";
+const R=D.run,N=D.nodes,byId=Object.fromEntries(N.map(n=>[n.id,n]));
+const ok=b=>b?`<span class="icon" style="background:var(--good)">✓</span>`:`<span class="icon" style="background:var(--crit)">!</span>`;
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+$("kpis").innerHTML=
+ `<div class="card kpi"><div class="k">Models built</div><div class="v">${R.models}</div><div class="s">in ${R.build_seconds}s on SQLite</div></div>`+
+ `<div class="card kpi"><div class="k">Data tests</div><div class="v">${R.passed} / ${R.tests}</div><div class="s">${ok(R.passed===R.tests)}${R.passed===R.tests?"all passing":"failures"}</div></div>`+
+ `<div class="card kpi"><div class="k">Raw payment events</div><div class="v">${fmt(R.seed_rows.payments_raw)}</div><div class="s">→ ${fmt(R.model_rows.fct_payments)} rows in fct_payments</div></div>`+
+ `<div class="card kpi"><div class="k">Latest month GMV</div><div class="v">${usdM(D.kpis[D.kpis.length-1].gmv_usd)}</div><div class="s">${D.kpis[D.kpis.length-1].payment_month} · ${fmt(D.kpis[D.kpis.length-1].active_merchants)} active merchants</div></div>`;
+
+/* DAG */
+const layers=["sources","staging","intermediate","marts"],W=760,colW=W/4,nodeW=150,nodeH=34;
+const cols=Object.fromEntries(layers.map(l=>[l,N.filter(n=>n.layer===l)]));
+const H=Math.max(...layers.map(l=>cols[l].length))*52+40,pos={};
+layers.forEach((l,i)=>{const list=cols[l],gap=(H-30)/list.length;list.forEach((n,j)=>pos[n.id]=[i*colW+(colW-nodeW)/2,30+gap*j+(gap-nodeH)/2])});
+let selected="fct_payments";
+function dag(){let g="";layers.forEach((l,i)=>g+=`<text class="colh" x="${i*colW+colW/2}" y="14" text-anchor="middle">${l}</text>`);
+  const up=new Set(),down=new Set();(function walk(id){(byId[id].refs||[]).forEach(r=>{if(!up.has(r)){up.add(r);walk(r)}})})(selected);
+  (function walkd(id){N.forEach(n=>{if((n.refs||[]).includes(id)&&!down.has(n.id)){down.add(n.id);walkd(n.id)}})})(selected);
+  N.forEach(n=>(n.refs||[]).forEach(r=>{const a=pos[r],b=pos[n.id];if(!a||!b)return;const x1=a[0]+nodeW,y1=a[1]+nodeH/2,x2=b[0],y2=b[1]+nodeH/2,mx=(x1+x2)/2;
+    const hl=(n.id===selected&&up.has(r))||(up.has(n.id)&&up.has(r))||(n.id===selected)||(down.has(n.id)&&(down.has(r)||r===selected));
+    g+=`<path class="edge${hl?" hl":""}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`}));
+  N.forEach(n=>{const [x,y]=pos[n.id];g+=`<g class="node${n.id===selected?" sel":""}" tabindex="0" role="button" aria-label="${n.id}" data-id="${n.id}"><rect x="${x}" y="${y}" width="${nodeW}" height="${nodeH}" rx="6" stroke="var(--l-${n.layer})"/><text x="${x+8}" y="${y+14}">${n.id}</text><text class="rows" x="${x+8}" y="${y+27}">${fmt(n.rows)} rows</text></g>`});
+  $("dag").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Model lineage graph">${g}</svg>`;
+  $("dag").querySelectorAll(".node").forEach(el=>{const go=()=>{selected=el.dataset.id;dag();inspect()};el.addEventListener("click",go);el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}})});}
+function inspect(){const n=byId[selected],tests=D.tests.filter(t=>t.model.split(", ").includes(n.id));
+  $("insp").innerHTML=`<h2><code>${n.id}</code></h2><div class="meta">${n.layer} · ${fmt(n.rows)} rows${n.seconds!=null?` · built in ${n.seconds}s`:""}${n.refs.length?` · depends on ${n.refs.join(", ")}`:""}</div><p class="note">${n.description}</p>`+
+   (n.columns.length?`<details><summary>Columns (${n.columns.length})</summary><div class="tablewrap"><table><tbody>${n.columns.map(c=>`<tr><td><code>${c.name}</code></td><td class="l note">${c.description||""}</td></tr>`).join("")}</tbody></table></div></details>`:"")+
+   (tests.length?`<h3>Tests</h3>${tests.map(t=>`<div class="note">${ok(t.status==="pass")}${t.column?`<code>${t.column}</code> `:""}${t.test}</div>`).join("")}`:"")+
+   (n.sql?`<h3>SQL</h3><pre>${esc(n.sql)}</pre>`:"");}
+dag();inspect();
+
+/* funnel */
+const funnelTop=D.funnel[0].rows;
+$("funnel").innerHTML=D.funnel.map(f=>`<div class="frow"><span>${f.step}</span><div class="fbar" style="width:${(f.rows/funnelTop*100).toFixed(1)}%"></div><span style="text-align:right;font-variant-numeric:tabular-nums">${fmt(f.rows)}</span><div class="fnote">${f.note}</div></div>`).join("");
+const F=D.fixes;
+$("fixes").innerHTML=[["epoch timestamps parsed",F.epoch_timestamps],["text amounts parsed",F.text_amounts],["lower-case currency codes",F.lowercase_currency],["payments converted to USD",F.non_usd_payments],["weekend FX days filled",F.weekend_fx_days_filled],["plan changes tracked (SCD2)",F.plan_changes],["industry spellings merged",F.industry_variants_fixed]].map(([l,v])=>`<span class="chip"><b>${fmt(v)}</b> ${l}</span>`).join("");
+
+/* tests */
+$("t-tests").innerHTML=`<thead><tr><th>Model · column</th><th style="text-align:left">Test</th><th>Failing rows</th></tr></thead><tbody>`+
+ D.tests.map(t=>`<tr><td class="l"><code>${t.model}${t.column?"."+t.column:""}</code></td><td class="l">${ok(t.status==="pass")}${t.test}</td><td>${fmt(t.failures)}</td></tr>`).join("")+"</tbody>";
+
+/* metrics */
+const ms=Object.keys(D.metrics);$("metric").innerHTML=ms.map(m=>`<option value="${m}">${D.metrics[m].label}</option>`).join("");
+function metric(){const m=D.metrics[$("metric").value],vals=m.values,key=$("metric").value;$("m-desc").textContent=m.description;$("m-sql").textContent=m.sql;
+  const isRate=key.includes("rate"),W=520,Hh=200,L=48,Rr=8,T=10,B=24,mx=Math.max(...vals.map(v=>v[key]))*1.12,bw=(W-L-Rr)/vals.length;
+  const y=v=>T+(Hh-T-B)*(1-v/mx),f=v=>isRate?(v*100).toFixed(2)+"%":key==="active_merchants"?fmt(Math.round(v)):"$"+(v>=1e6?(v/1e6).toFixed(1)+"M":Math.round(v/1e3)+"K");
+  let g="";for(let i=0;i<=4;i++){const v=mx*i/4;g+=`<line class="gl" x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/><text class="tk" x="${L-6}" y="${y(v)+4}" text-anchor="end">${f(v)}</text>`}
+  vals.forEach((v,i)=>{const x=L+i*bw+bw*.15;g+=`<rect x="${x}" y="${y(v[key])}" width="${bw*.7}" height="${y(0)-y(v[key])}" rx="2" fill="var(--s1)"><title>${v.month}: ${f(v[key])}</title></rect>`;if(i%3===0)g+=`<text class="tk" x="${x+bw*.35}" y="${Hh-8}" text-anchor="middle">${v.month}</text>`});
+  $("c-metric").innerHTML=`<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${m.label} by month">${g}</svg>`;}
+$("metric").addEventListener("change",metric);metric();
+
+/* KPI table */
+$("t-kpi").innerHTML=`<thead><tr><th>Month</th><th>GMV</th><th>Net revenue</th><th>Take rate</th><th>Auth rate</th><th>Refunds</th><th>Active</th><th>New</th><th>Churned</th></tr></thead><tbody>`+
+ D.kpis.slice(-9).map(k=>`<tr><td>${k.payment_month}</td><td>${usdM(k.gmv_usd)}</td><td>$${fmt(Math.round(k.net_revenue_usd))}</td><td>${(k.take_rate*100).toFixed(2)}%</td><td>${(k.authorisation_rate*100).toFixed(1)}%</td><td>${(k.refund_rate*100).toFixed(1)}%</td><td>${fmt(k.active_merchants)}</td><td>${k.new_merchants}</td><td>${k.churned_merchants}</td></tr>`).join("")+"</tbody>";
+
+/* heat */
+(function(){const by={};D.cohorts.forEach(c=>{(by[c.cohort_month]=by[c.cohort_month]||{})[c.months_since_first]=c.retention});
+  const cs=Object.keys(by).sort(),mx=Math.max(...D.cohorts.map(c=>c.months_since_first));
+  const shade=v=>`var(--q${Math.min(6,Math.max(1,Math.ceil(v*6)))})`;
+  $("t-heat").innerHTML=`<thead><tr><th>Cohort</th>${Array.from({length:mx+1},(_,i)=>`<th>M${i}</th>`).join("")}</tr></thead><tbody>`+
+   cs.map(c=>`<tr><td>${c}</td>${Array.from({length:mx+1},(_,i)=>{const v=by[c][i];return v==null?"<td></td>":`<td style="background:${shade(v)};color:${v>0.55?"#fff":"var(--ink)"}" title="${c}, month ${i}: ${(v*100).toFixed(1)}%">${Math.round(v*100)}</td>`}).join("")}</tr>`).join("")+"</tbody>";})();
+</script>
+</body>
+</html>

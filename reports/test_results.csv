@@ -1,0 +1,29 @@
+model,column,test,failures,status
+stg_payments,payment_id,unique,0,pass
+stg_payments,payment_id,not_null,0,pass
+stg_payments,status,"accepted_values: succeeded, failed, pending",0,pass
+stg_payments,currency,"accepted_values: USD, EUR, GBP, CAD",0,pass
+stg_payments,created_at,not_null,0,pass
+stg_merchants,merchant_id,not_null,0,pass
+stg_merchants,plan,"accepted_values: standard, growth, enterprise",0,pass
+stg_merchants,valid_to,expression: valid_to >= valid_from,0,pass
+int_fx_daily,rate_to_usd,not_null,0,pass
+int_fx_daily,rate_to_usd,expression: rate_to_usd > 0,0,pass
+fct_payments,payment_id,unique,0,pass
+fct_payments,payment_id,not_null,0,pass
+fct_payments,merchant_id,relationships: dim_merchants.merchant_id,0,pass
+fct_payments,amount_usd,not_null,0,pass
+fct_payments,amount_usd,expression: amount_usd > 0,0,pass
+fct_payments,plan,not_null,0,pass
+dim_merchants,merchant_id,unique,0,pass
+dim_merchants,merchant_id,not_null,0,pass
+dim_merchants,current_plan,"accepted_values: standard, growth, enterprise",0,pass
+mart_merchant_monthly,gmv_usd,expression: gmv_usd >= 0,0,pass
+mart_kpis_monthly,payment_month,unique,0,pass
+mart_kpis_monthly,payment_month,not_null,0,pass
+mart_kpis_monthly,take_rate,expression: take_rate between 0.02 and 0.04,0,pass
+mart_kpis_monthly,authorisation_rate,expression: authorisation_rate between 0.85 and 1,0,pass
+mart_cohort_retention,retention,expression: retention > 0 and retention <= 1,0,pass
+"fct_payments, quarantine_payments, stg_payments",,assert_every_payment_accounted_for,0,pass
+"fct_payments, mart_kpis_monthly",,assert_gmv_reconciles,0,pass
+stg_merchants,,assert_one_plan_version_per_day,0,pass
