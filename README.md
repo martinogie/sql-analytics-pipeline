@@ -107,7 +107,7 @@ defects listed above.
 
 ## How this was built
 
-Built with AI-assisted coding (Claude). The modelling, tests and review are my own.
+Built with AI-assisted coding. The modelling, tests and review are my own.
 
 ## License
 
